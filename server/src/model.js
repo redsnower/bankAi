@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+
 class AccountModel {
   constructor() {
     // 简单内存数据，示例用途
@@ -5,8 +8,9 @@ class AccountModel {
       'alice': { balance: 1000, currency: 'USD' },
       'bob': { balance: 500, currency: 'USD' }
     };
-    // keep a simple transaction history in-memory for demo purposes
-    this.transactions = [];
+    // persistent transactions stored in data/transactions.json
+    this.dbPath = path.join(__dirname, '../../data/transactions.json');
+    this.transactions = this.loadTransactions();
   }
 
   getAccount(user) {
@@ -17,6 +21,23 @@ class AccountModel {
 
   getAllAccounts() {
     return Object.entries(this.accounts).map(([user, v]) => ({ user, ...v }));
+  }
+
+  loadTransactions() {
+    try {
+      if (fs.existsSync(this.dbPath)) {
+        const raw = fs.readFileSync(this.dbPath, 'utf8');
+        return JSON.parse(raw || '[]');
+      }
+    } catch (e) { /* ignore and start fresh */ }
+    return [];
+  }
+
+  saveTransactions() {
+    try {
+      fs.mkdirSync(path.dirname(this.dbPath), { recursive: true });
+      fs.writeFileSync(this.dbPath, JSON.stringify(this.transactions, null, 2), 'utf8');
+    } catch (e) { console.error('Failed to save transactions:', e.message); }
   }
 
   getTransactions() {
@@ -43,9 +64,17 @@ class AccountModel {
       timestamp: new Date().toISOString()
     };
     this.transactions.push(tx);
+    this.saveTransactions();
 
     return { from: this.getAccount(from), to: this.getAccount(to), tx };
   }
+
+  clearTransactions() {
+    this.transactions = [];
+    this.saveTransactions();
+  }
 }
+
+module.exports = AccountModel;
 
 module.exports = AccountModel;

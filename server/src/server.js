@@ -30,6 +30,23 @@ app.get('/api/transactions', (req, res) => {
   res.json(model.getTransactions());
 });
 
+// Export CSV
+app.get('/api/export', (req, res) => {
+  const txs = model.getTransactions();
+  const headers = ['id','from','to','amount','currency','timestamp'];
+  const csv = [headers.join(',')]
+    .concat(txs.map(t => headers.map(h => JSON.stringify(t[h] || '')).join(','))).join('\n');
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="transactions.csv"');
+  res.send(csv);
+});
+
+// Clear history
+app.post('/api/transactions/clear', (req, res) => {
+  model.clearTransactions();
+  res.json({ success: true });
+});
+
 // Perform an action via presenter (acts as the "View")
 app.post('/api/action', async (req, res) => {
   const { user, intent, params } = req.body;
