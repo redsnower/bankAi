@@ -100,7 +100,9 @@
     </div>
 
     <script>
-      const BASE = window.location.origin;
+      // Determine API base: if the page is opened as a local file, fallback to localhost:3000
+      const BASE = (window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin);
+
       const api = (path, opts) => fetch(BASE + path, opts).then(async r => {
         if (!r.ok) {
           let err = r.statusText;
@@ -108,7 +110,13 @@
           throw new Error(err);
         }
         return r.json();
-      });
+      }).catch(e => { throw e; });
+
+      function showAlert(msg){
+        let a = document.getElementById('alertBox');
+        if(!a){ a = document.createElement('div'); a.id='alertBox'; a.className='alert alert-warning'; a.style.marginTop='10px'; document.querySelector('.container').prepend(a); }
+        a.textContent = msg;
+      }
 
       function downloadCSV(){
         window.location = BASE + '/api/export';
