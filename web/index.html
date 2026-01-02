@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Bank AI Agent Demo</title>
+    <style>body{font-family:Arial;padding:20px} #log{white-space:pre-wrap;background:#f7f7f7;padding:10px;border-radius:6px}</style>
+  </head>
+  <body>
+    <h1>Bank AI Agent — MVP Demo</h1>
+    <div>
+      <label>User: <select id="user"><option>alice</option><option>bob</option></select></label>
+    </div>
+    <div>
+      <button id="balanceBtn">查询余额</button>
+    </div>
+    <div>
+      <h3>转账</h3>
+      <label>To: <input id="to" value="bob"></label>
+      <label>Amount: <input id="amount" value="100"></label>
+      <button id="transferBtn">转账</button>
+    </div>
+
+    <h3>交互日志</h3>
+    <div id="log"></div>
+
+    <script>
+      const api = (path, opts) => fetch('http://localhost:3000' + path, opts).then(r => r.json());
+      const log = msg => { document.getElementById('log').textContent += msg + '\n'; }
+
+      document.getElementById('balanceBtn').addEventListener('click', async () => {
+        const user = document.getElementById('user').value;
+        const res = await api('/api/action', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ user, intent: 'check_balance' }) });
+        log('balance -> ' + JSON.stringify(res));
+      });
+
+      document.getElementById('transferBtn').addEventListener('click', async () => {
+        const user = document.getElementById('user').value;
+        const to = document.getElementById('to').value;
+        const amount = Number(document.getElementById('amount').value);
+        const res = await api('/api/action', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ user, intent: 'transfer', params: { to, amount } }) });
+        log('transfer -> ' + JSON.stringify(res));
+      });
+
+      // load accounts on start
+      (async () => { const ac = await fetch('http://localhost:3000/api/accounts').then(r=>r.json()); log('accounts: ' + JSON.stringify(ac)); })();
+    </script>
+  </body>
+</html>

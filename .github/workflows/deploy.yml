@@ -1,0 +1,29 @@
+name: Deploy to Zeabur
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: |
+          docker build -t bank-ai-mvp .
+      - name: Install Zeabur CLI
+        run: |
+          curl -fsSL https://get.zeabur.com | bash
+      - name: Login to Zeabur
+        env:
+          ZEA_TOKEN: ${{ secrets.ZEA_TOKEN }}
+        run: |
+          zeabur login --token "$ZEA_TOKEN"
+      - name: Deploy (create if needed)
+        env:
+          ZEA_TOKEN: ${{ secrets.ZEA_TOKEN }}
+        run: |
+          zeabur apps create --name bank-ai-mvp --docker --yes || echo "app exists"
+          zeabur apps deploy --app bank-ai-mvp
