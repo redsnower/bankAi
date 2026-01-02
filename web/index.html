@@ -2,47 +2,134 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Bank AI Agent Demo</title>
-    <style>body{font-family:Arial;padding:20px} #log{white-space:pre-wrap;background:#f7f7f7;padding:10px;border-radius:6px}</style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+      body{padding:20px}
+      #log{white-space:pre-wrap;background:#f7f7f7;padding:10px;border-radius:6px;height:160px;overflow:auto}
+      .spinner-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,0.6);align-items:center;justify-content:center;z-index:9999}
+      .spinner-overlay.show{display:flex}
+    </style>
   </head>
   <body>
-    <h1>Bank AI Agent — MVP Demo</h1>
-    <div>
-      <label>User: <select id="user"><option>alice</option><option>bob</option></select></label>
-    </div>
-    <div>
-      <button id="balanceBtn">查询余额</button>
-    </div>
-    <div>
-      <h3>转账</h3>
-      <label>To: <input id="to" value="bob"></label>
-      <label>Amount: <input id="amount" value="100"></label>
-      <button id="transferBtn">转账</button>
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h4">Bank AI Agent — Demo</h1>
+        <div>
+          <select id="user" class="form-select form-select-sm">
+            <option>alice</option>
+            <option>bob</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">Accounts</h5>
+              <table class="table table-sm" id="accountsTable">
+                <thead><tr><th>User</th><th>Balance</th><th>Currency</th></tr></thead>
+                <tbody></tbody>
+              </table>
+              <button id="refreshBtn" class="btn btn-sm btn-outline-primary">Refresh</button>
+            </div>
+          </div>
+
+          <div class="card mt-3">
+            <div class="card-body">
+              <h5 class="card-title">Transfer</h5>
+              <div class="row g-2 align-items-center">
+                <div class="col-4"><input id="to" class="form-control form-control-sm" value="bob"></div>
+                <div class="col-4"><input id="amount" type="number" class="form-control form-control-sm" value="100"></div>
+                <div class="col-4"><button id="transferBtn" class="btn btn-sm btn-primary">Transfer</button></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">Transaction History</h5>
+              <ul class="list-group" id="historyList" style="max-height:300px;overflow:auto"></ul>
+            </div>
+          </div>
+
+          <div class="card mt-3">
+            <div class="card-body">
+              <h5 class="card-title">Interaction Log</h5>
+              <div id="log"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <small class="text-muted">Note: This demo uses an in-memory store. Reload resets state.</small>
+      </div>
     </div>
 
-    <h3>交互日志</h3>
-    <div id="log"></div>
+    <div class="spinner-overlay" id="spinner"><div class="spinner-border text-primary" role="status"></div></div>
 
     <script>
-      const api = (path, opts) => fetch('http://localhost:3000' + path, opts).then(r => r.json());
-      const log = msg => { document.getElementById('log').textContent += msg + '\n'; }
-
-      document.getElementById('balanceBtn').addEventListener('click', async () => {
-        const user = document.getElementById('user').value;
-        const res = await api('/api/action', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ user, intent: 'check_balance' }) });
-        log('balance -> ' + JSON.stringify(res));
+      const BASE = window.location.origin;
+      const api = (path, opts) => fetch(BASE + path, opts).then(async r => {
+        if (!r.ok) throw new Error((await r.json()).error || r.statusText);
+        return r.json();
       });
+
+      const el = id => document.getElementById(id);
+      const log = msg => { const l = el('log'); l.textContent = new Date().toLocaleTimeString() + ' - ' + msg + '\n' + l.textContent; };
+      const showSpinner = (show) => el('spinner').classList.toggle('show', !!show);
+
+      async function loadAccounts(){
+        showSpinner(true);
+        try{
+          const ac = await api('/api/accounts');
+          const tbody = document.querySelector('#accountsTable tbody'); tbody.innerHTML='';
+          ac.forEach(a => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${a.user}</td><td>${a.balance}</td><td>${a.currency}</td>`;
+            tbody.appendChild(tr);
+          });
+          log('Loaded accounts');
+        }catch(e){log('Error loading accounts: '+e.message)}finally{showSpinner(false)}
+      }
+
+      async function loadHistory(){
+        try{
+          const txs = await api('/api/transactions');
+          const list = el('historyList'); list.innerHTML='';
+          txs.forEach(t => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item';
+            li.innerHTML = `<strong>${t.from}</strong> → <strong>${t.to}</strong> : ${t.amount} ${t.currency} <br/><small class="text-muted">${new Date(t.timestamp).toLocaleString()}</small>`;
+            list.appendChild(li);
+          });
+        }catch(e){log('Error loading history: '+e.message)}
+      }
+
+      document.getElementById('refreshBtn').addEventListener('click', ()=>{ loadAccounts(); loadHistory(); });
 
       document.getElementById('transferBtn').addEventListener('click', async () => {
-        const user = document.getElementById('user').value;
-        const to = document.getElementById('to').value;
-        const amount = Number(document.getElementById('amount').value);
-        const res = await api('/api/action', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ user, intent: 'transfer', params: { to, amount } }) });
-        log('transfer -> ' + JSON.stringify(res));
+        const user = el('user').value;
+        const to = el('to').value;
+        const amount = Number(el('amount').value);
+        showSpinner(true);
+        try{
+          const res = await api('/api/action', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ user, intent: 'transfer', params: { to, amount } }) });
+          log('Transfer success: ' + JSON.stringify(res.transaction));
+          if (res.advice) log('Advice: ' + res.advice);
+          await loadAccounts();
+          await loadHistory();
+        }catch(e){log('Transfer error: '+e.message)}finally{showSpinner(false)}
       });
 
-      // load accounts on start
-      (async () => { const ac = await fetch('http://localhost:3000/api/accounts').then(r=>r.json()); log('accounts: ' + JSON.stringify(ac)); })();
+      // init
+      loadAccounts(); loadHistory();
     </script>
   </body>
 </html>

@@ -25,6 +25,11 @@ app.get('/api/accounts', (req, res) => {
   res.json(model.getAllAccounts());
 });
 
+// Transactions history
+app.get('/api/transactions', (req, res) => {
+  res.json(model.getTransactions());
+});
+
 // Perform an action via presenter (acts as the "View")
 app.post('/api/action', async (req, res) => {
   const { user, intent, params } = req.body;
