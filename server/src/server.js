@@ -11,7 +11,8 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Serve frontend static files from the web/ folder at project root
-app.use(express.static(path.join(__dirname, '../../web')));
+// Use one-level up to reach `/app/web` in the container (when server is in /app/src)
+app.use(express.static(path.join(__dirname, '../web')));
 
 const model = new AccountModel();
 const presenter = new Presenter(model);
